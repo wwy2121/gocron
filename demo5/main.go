@@ -48,10 +48,11 @@ func main() {
 					go func(jobName string) {
 						fmt.Println("执行", jobName)
 					}(jobName)
+					//计算下一次的调度时间
+					cronJob.nextTime = cronJob.expr.Next(now)
+					fmt.Println(jobName, "下次执行时间", cronJob.nextTime)
 				}
-				//计算下一次的调度时间
-				cronJob.nextTime = cronJob.expr.Next(now)
-				fmt.Println(jobName, "下次执行时间", cronJob.nextTime)
+
 			}
 			select {
 			case <-time.NewTimer(100 * time.Millisecond).C:
