@@ -8,102 +8,84 @@ import (
 )
 
 func main() {
+	const KEY string = "/cron/abc"
 	var (
-		config        clientv3.Config
-		client        *clientv3.Client
-		kv            clientv3.KV
-		ctx           context.Context
-		putRepon      *clientv3.PutResponse
-		getRespon     *clientv3.GetResponse
-		delRespon     *clientv3.DeleteResponse
-		grantRespon   *clientv3.LeaseGrantResponse
-		lease         clientv3.Lease
-		leaseId       clientv3.LeaseID
-		keepAliveChan <-chan *clientv3.LeaseKeepAliveResponse
-		keepAlive     *clientv3.LeaseKeepAliveResponse
-		watch         clientv3.WatchChan
-		err           error
+		config          clientv3.Config
+		client          *clientv3.Client
+		kv              clientv3.KV
+		putRespon       *clientv3.PutResponse
+		getRespon       *clientv3.GetResponse
+		delRespon       *clientv3.DeleteResponse
+		lease           clientv3.Lease
+		grantRespon     *clientv3.LeaseGrantResponse
+		leaseId         clientv3.LeaseID
+		aliveResponChan <-chan *clientv3.LeaseKeepAliveResponse
+		aliveRespon     *clientv3.LeaseKeepAliveResponse
+		ctx             context.Context
+		cancelFunc      context.CancelFunc
+		err             error
 	)
-	//config
+
 	config = clientv3.Config{
 		Endpoints:   []string{"192.168.99.100:2379"},
 		DialTimeout: 5 * time.Second,
 	}
-	//client
 	if client, err = clientv3.New(config); err != nil {
 		fmt.Println(err)
 		return
 	}
-	//new
 	kv = clientv3.NewKV(client)
-	//timeout
-	ctx, _ = context.WithTimeout(context.TODO(), 20*time.Second)
-
-	go func() {
-		watch = client.Watch(ctx, "/cron/lease")
-		for v := range watch {
-			for _, val := range v.Events {
-				fmt.Println("动态变化值", val.Type, string(val.Kv.Key), val.PrevKv)
-			}
-		}
-	}()
-
-	//put
-	if putRepon, err = kv.Put(ctx, "/cron/c", "345545"); err != nil {
+	if putRespon, err = kv.Put(context.TODO(), KEY, "5345345"); err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(putRepon.Header)
-	//get
-	if getRespon, err = kv.Get(ctx, "/cron", clientv3.WithPrefix()); err != nil {
+	fmt.Println(putRespon.Header.Revision)
+	if getRespon, err = kv.Get(context.TODO(), KEY); err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(getRespon.Kvs)
-	for k, v := range getRespon.Kvs {
-		fmt.Println(k, string(v.Key), string(v.Value))
-	}
-	//del
-	if delRespon, err = kv.Delete(ctx, "/cron/c"); err != nil {
+	fmt.Println(string(getRespon.Kvs[0].Value))
+	if delRespon, err = kv.Delete(context.TODO(), KEY); err != nil {
 		fmt.Println(err)
 		return
 	}
 	fmt.Println(delRespon.Deleted)
-	//租约
+
 	lease = clientv3.NewLease(client)
-	if grantRespon, err = lease.Grant(ctx, 10); err != nil {
+	if grantRespon, err = lease.Grant(context.TODO(), 10); err != nil {
 		fmt.Println(err)
 		return
 	}
 	leaseId = grantRespon.ID
-	if putRepon, err = kv.Put(ctx, "/cron/lease", "4535354", clientv3.WithLease(leaseId)); err != nil {
-		fmt.Println(err)
-		return
-	}
-	if keepAliveChan, err = lease.KeepAlive(ctx, leaseId); err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println(keepAliveChan)
-	time.Sleep(30 * time.Second)
+	fmt.Println(leaseId)
 
-	//续租
+	ctx, cancelFunc = context.WithCancel(context.TODO())
+	defer cancelFunc()
+	defer lease.Revoke(ctx, leaseId)
+
+	if _, err = kv.Put(context.TODO(), "/cron/lease", "", clientv3.WithLease(leaseId)); err != nil {
+		fmt.Println(err)
+		return
+	}
+	if aliveResponChan, err = lease.KeepAlive(context.TODO(), leaseId); err != nil {
+		fmt.Println(err)
+		return
+	}
 	go func() {
 		for {
 			select {
-			case keepAlive = <-keepAliveChan:
-				if keepAlive == nil {
+			case aliveRespon = <-aliveResponChan:
+				if aliveRespon == nil {
 					fmt.Println("过期了")
 					goto END
 				} else {
-					fmt.Println("续租成功", keepAlive.ID)
+					fmt.Println("续租成功")
 				}
 			}
 			time.Sleep(1 * time.Second)
 		}
 	END:
 	}()
-	fmt.Println(putRepon.Header)
-	time.Sleep(100 * time.Second)
 
+	time.Sleep(20 * time.Second)
 }

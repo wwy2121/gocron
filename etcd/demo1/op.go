@@ -69,7 +69,7 @@ func main() {
 	//开启事务
 	txn = kv.Txn(ctx)
 	txn.If(clientv3.Compare(clientv3.CreateRevision("/cron/lock"), "=", 0)).
-		Then(clientv3.OpPut("/cron/lock", "locked", clientv3.WithLease(leaseId))).
+		Then(clientv3.OpPut("/cron/lock", "", clientv3.WithLease(leaseId))).
 		Else(clientv3.OpGet("/cron/lock"))
 
 	//提交事务
@@ -84,6 +84,6 @@ func main() {
 		return
 	}
 	//处理业务
-	fmt.Println("hedadasd")
+	fmt.Println("处理业务中。。。。。。")
 	time.Sleep(5 * time.Second)
 }
