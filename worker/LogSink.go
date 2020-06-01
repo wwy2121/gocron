@@ -2,7 +2,7 @@ package worker
 
 import (
 	"github.com/mongodb/mongo-go-driver/mongo"
-	"github.com/owenliang/crontab/common"
+	"gocron/common"
 	"context"
 	"github.com/mongodb/mongo-go-driver/mongo/clientopt"
 	"time"

@@ -1,7 +1,7 @@
 package worker
 
 import (
-	"github.com/owenliang/crontab/common"
+	"gocron/common"
 	"os/exec"
 	"time"
 	"math/rand"

@@ -3,7 +3,7 @@ package master
 import (
 	"github.com/coreos/etcd/clientv3"
 	"time"
-	"github.com/owenliang/crontab/common"
+	"gocron/common"
 	"encoding/json"
 	"context"
 	"github.com/coreos/etcd/mvcc/mvccpb"

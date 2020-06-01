@@ -2,7 +2,7 @@ package main
 
 import (
 	"runtime"
-	"github.com/owenliang/crontab/master"
+	"gocron/master"
 	"fmt"
 	"flag"
 	"time"
