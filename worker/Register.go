@@ -1,18 +1,18 @@
 package worker
 
 import (
-	"github.com/coreos/etcd/clientv3"
-	"time"
-	"net"
-	"gocron/common"
 	"context"
+	"go.etcd.io/etcd/clientv3"
+	"gocron/common"
+	"net"
+	"time"
 )
 
 // 注册节点到etcd： /cron/workers/IP地址
 type Register struct {
 	client *clientv3.Client
-	kv clientv3.KV
-	lease clientv3.Lease
+	kv     clientv3.KV
+	lease  clientv3.Lease
 
 	localIP string // 本机IP
 }
@@ -24,9 +24,9 @@ var (
 // 获取本机网卡IP
 func getLocalIP() (ipv4 string, err error) {
 	var (
-		addrs []net.Addr
-		addr net.Addr
-		ipNet *net.IPNet // IP地址
+		addrs   []net.Addr
+		addr    net.Addr
+		ipNet   *net.IPNet // IP地址
 		isIpNet bool
 	)
 	// 获取所有网卡
@@ -39,7 +39,7 @@ func getLocalIP() (ipv4 string, err error) {
 		if ipNet, isIpNet = addr.(*net.IPNet); isIpNet && !ipNet.IP.IsLoopback() {
 			// 跳过IPV6
 			if ipNet.IP.To4() != nil {
-				ipv4 = ipNet.IP.String()	// 192.168.1.1
+				ipv4 = ipNet.IP.String() // 192.168.1.1
 				return
 			}
 		}
@@ -52,13 +52,13 @@ func getLocalIP() (ipv4 string, err error) {
 // 注册到/cron/workers/IP, 并自动续租
 func (register *Register) keepOnline() {
 	var (
-		regKey string
+		regKey         string
 		leaseGrantResp *clientv3.LeaseGrantResponse
-		err error
-		keepAliveChan <- chan *clientv3.LeaseKeepAliveResponse
-		keepAliveResp *clientv3.LeaseKeepAliveResponse
-		cancelCtx context.Context
-		cancelFunc context.CancelFunc
+		err            error
+		keepAliveChan  <-chan *clientv3.LeaseKeepAliveResponse
+		keepAliveResp  *clientv3.LeaseKeepAliveResponse
+		cancelCtx      context.Context
+		cancelFunc     context.CancelFunc
 	)
 
 	for {
@@ -87,14 +87,14 @@ func (register *Register) keepOnline() {
 		// 处理续租应答
 		for {
 			select {
-			case keepAliveResp = <- keepAliveChan:
-				if keepAliveResp == nil {	// 续租失败
+			case keepAliveResp = <-keepAliveChan:
+				if keepAliveResp == nil { // 续租失败
 					goto RETRY
 				}
 			}
 		}
 
-		RETRY:
+	RETRY:
 		time.Sleep(1 * time.Second)
 		if cancelFunc != nil {
 			cancelFunc()
@@ -104,16 +104,16 @@ func (register *Register) keepOnline() {
 
 func InitRegister() (err error) {
 	var (
-		config clientv3.Config
-		client *clientv3.Client
-		kv clientv3.KV
-		lease clientv3.Lease
+		config  clientv3.Config
+		client  *clientv3.Client
+		kv      clientv3.KV
+		lease   clientv3.Lease
 		localIp string
 	)
 
 	// 初始化配置
 	config = clientv3.Config{
-		Endpoints: G_config.EtcdEndpoints, // 集群地址
+		Endpoints:   G_config.EtcdEndpoints,                                     // 集群地址
 		DialTimeout: time.Duration(G_config.EtcdDialTimeout) * time.Millisecond, // 连接超时
 	}
 
@@ -132,9 +132,9 @@ func InitRegister() (err error) {
 	lease = clientv3.NewLease(client)
 
 	G_register = &Register{
-		client: client,
-		kv: kv,
-		lease: lease,
+		client:  client,
+		kv:      kv,
+		lease:   lease,
 		localIP: localIp,
 	}
 

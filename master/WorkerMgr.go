@@ -1,18 +1,18 @@
 package master
 
 import (
-	"github.com/coreos/etcd/clientv3"
-	"time"
 	"context"
-	"gocron/common"
 	"github.com/coreos/etcd/mvcc/mvccpb"
+	"go.etcd.io/etcd/clientv3"
+	"gocron/common"
+	"time"
 )
 
 // /cron/workers/
 type WorkerMgr struct {
 	client *clientv3.Client
-	kv clientv3.KV
-	lease clientv3.Lease
+	kv     clientv3.KV
+	lease  clientv3.Lease
 }
 
 var (
@@ -22,8 +22,8 @@ var (
 // 获取在线worker列表
 func (workerMgr *WorkerMgr) ListWorkers() (workerArr []string, err error) {
 	var (
-		getResp *clientv3.GetResponse
-		kv *mvccpb.KeyValue
+		getResp  *clientv3.GetResponse
+		kv       *mvccpb.KeyValue
 		workerIP string
 	)
 
@@ -48,13 +48,13 @@ func InitWorkerMgr() (err error) {
 	var (
 		config clientv3.Config
 		client *clientv3.Client
-		kv clientv3.KV
-		lease clientv3.Lease
+		kv     clientv3.KV
+		lease  clientv3.Lease
 	)
 
 	// 初始化配置
 	config = clientv3.Config{
-		Endpoints: G_config.EtcdEndpoints, // 集群地址
+		Endpoints:   G_config.EtcdEndpoints,                                     // 集群地址
 		DialTimeout: time.Duration(G_config.EtcdDialTimeout) * time.Millisecond, // 连接超时
 	}
 
@@ -68,9 +68,9 @@ func InitWorkerMgr() (err error) {
 	lease = clientv3.NewLease(client)
 
 	G_workerMgr = &WorkerMgr{
-		client :client,
-		kv: kv,
-		lease: lease,
+		client: client,
+		kv:     kv,
+		lease:  lease,
 	}
 	return
 }

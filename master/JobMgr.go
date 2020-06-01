@@ -1,19 +1,19 @@
 package master
 
 import (
-	"github.com/coreos/etcd/clientv3"
-	"time"
-	"gocron/common"
-	"encoding/json"
 	"context"
+	"encoding/json"
 	"github.com/coreos/etcd/mvcc/mvccpb"
+	"go.etcd.io/etcd/clientv3"
+	"gocron/common"
+	"time"
 )
 
 // 任务管理器
 type JobMgr struct {
 	client *clientv3.Client
-	kv clientv3.KV
-	lease clientv3.Lease
+	kv     clientv3.KV
+	lease  clientv3.Lease
 }
 
 var (
@@ -26,13 +26,13 @@ func InitJobMgr() (err error) {
 	var (
 		config clientv3.Config
 		client *clientv3.Client
-		kv clientv3.KV
-		lease clientv3.Lease
+		kv     clientv3.KV
+		lease  clientv3.Lease
 	)
 
 	// 初始化配置
 	config = clientv3.Config{
-		Endpoints: G_config.EtcdEndpoints, // 集群地址
+		Endpoints:   G_config.EtcdEndpoints,                                     // 集群地址
 		DialTimeout: time.Duration(G_config.EtcdDialTimeout) * time.Millisecond, // 连接超时
 	}
 
@@ -48,8 +48,8 @@ func InitJobMgr() (err error) {
 	// 赋值单例
 	G_jobMgr = &JobMgr{
 		client: client,
-		kv: kv,
-		lease: lease,
+		kv:     kv,
+		lease:  lease,
 	}
 	return
 }
@@ -58,9 +58,9 @@ func InitJobMgr() (err error) {
 func (jobMgr *JobMgr) SaveJob(job *common.Job) (oldJob *common.Job, err error) {
 	// 把任务保存到/cron/jobs/任务名 -> json
 	var (
-		jobKey string
-		jobValue []byte
-		putResp *clientv3.PutResponse
+		jobKey    string
+		jobValue  []byte
+		putResp   *clientv3.PutResponse
 		oldJobObj common.Job
 	)
 
@@ -89,8 +89,8 @@ func (jobMgr *JobMgr) SaveJob(job *common.Job) (oldJob *common.Job, err error) {
 // 删除任务
 func (jobMgr *JobMgr) DeleteJob(name string) (oldJob *common.Job, err error) {
 	var (
-		jobKey string
-		delResp *clientv3.DeleteResponse
+		jobKey    string
+		delResp   *clientv3.DeleteResponse
 		oldJobObj common.Job
 	)
 
@@ -105,7 +105,7 @@ func (jobMgr *JobMgr) DeleteJob(name string) (oldJob *common.Job, err error) {
 	// 返回被删除的任务信息
 	if len(delResp.PrevKvs) != 0 {
 		// 解析一下旧值, 返回它
-		if err =json.Unmarshal(delResp.PrevKvs[0].Value, &oldJobObj); err != nil {
+		if err = json.Unmarshal(delResp.PrevKvs[0].Value, &oldJobObj); err != nil {
 			err = nil
 			return
 		}
@@ -117,10 +117,10 @@ func (jobMgr *JobMgr) DeleteJob(name string) (oldJob *common.Job, err error) {
 // 列举任务
 func (jobMgr *JobMgr) ListJobs() (jobList []*common.Job, err error) {
 	var (
-		dirKey string
+		dirKey  string
 		getResp *clientv3.GetResponse
-		kvPair *mvccpb.KeyValue
-		job *common.Job
+		kvPair  *mvccpb.KeyValue
+		job     *common.Job
 	)
 
 	// 任务保存的目录
@@ -138,7 +138,7 @@ func (jobMgr *JobMgr) ListJobs() (jobList []*common.Job, err error) {
 	// 遍历所有任务, 进行反序列化
 	for _, kvPair = range getResp.Kvs {
 		job = &common.Job{}
-		if err =json.Unmarshal(kvPair.Value, job); err != nil {
+		if err = json.Unmarshal(kvPair.Value, job); err != nil {
 			err = nil
 			continue
 		}
@@ -151,9 +151,9 @@ func (jobMgr *JobMgr) ListJobs() (jobList []*common.Job, err error) {
 func (jobMgr *JobMgr) KillJob(name string) (err error) {
 	// 更新一下key=/cron/killer/任务名
 	var (
-		killerKey string
+		killerKey      string
 		leaseGrantResp *clientv3.LeaseGrantResponse
-		leaseId clientv3.LeaseID
+		leaseId        clientv3.LeaseID
 	)
 
 	// 通知worker杀死对应任务
