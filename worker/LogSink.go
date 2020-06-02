@@ -1,18 +1,18 @@
 package worker
 
 import (
-	"github.com/mongodb/mongo-go-driver/mongo"
-	"gocron/common"
 	"context"
-	"github.com/mongodb/mongo-go-driver/mongo/clientopt"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"gocron/common"
 	"time"
 )
 
 // mongodb存储日志
 type LogSink struct {
-	client *mongo.Client
-	logCollection *mongo.Collection
-	logChan chan *common.JobLog
+	client         *mongo.Client
+	logCollection  *mongo.Collection
+	logChan        chan *common.JobLog
 	autoCommitChan chan *common.LogBatch
 }
 
@@ -29,20 +29,20 @@ func (logSink *LogSink) saveLogs(batch *common.LogBatch) {
 // 日志存储协程
 func (logSink *LogSink) writeLoop() {
 	var (
-		log *common.JobLog
-		logBatch *common.LogBatch // 当前的批次
-		commitTimer *time.Timer
+		log          *common.JobLog
+		logBatch     *common.LogBatch // 当前的批次
+		commitTimer  *time.Timer
 		timeoutBatch *common.LogBatch // 超时批次
 	)
 
 	for {
 		select {
-		case log = <- logSink.logChan:
+		case log = <-logSink.logChan:
 			if logBatch == nil {
 				logBatch = &common.LogBatch{}
 				// 让这个批次超时自动提交(给1秒的时间）
 				commitTimer = time.AfterFunc(
-					time.Duration(G_config.JobLogCommitTimeout) * time.Millisecond,
+					time.Duration(G_config.JobLogCommitTimeout)*time.Millisecond,
 					func(batch *common.LogBatch) func() {
 						return func() {
 							logSink.autoCommitChan <- batch
@@ -63,7 +63,7 @@ func (logSink *LogSink) writeLoop() {
 				// 取消定时器
 				commitTimer.Stop()
 			}
-		case timeoutBatch = <- logSink.autoCommitChan: // 过期的批次
+		case timeoutBatch = <-logSink.autoCommitChan: // 过期的批次
 			// 判断过期批次是否仍旧是当前的批次
 			if timeoutBatch != logBatch {
 				continue // 跳过已经被提交的批次
@@ -78,22 +78,21 @@ func (logSink *LogSink) writeLoop() {
 
 func InitLogSink() (err error) {
 	var (
-		client *mongo.Client
+		client     *mongo.Client
+		ctx        context.Context
+		mongodbUri string
 	)
 
-	// 建立mongodb连接
-	if client, err = mongo.Connect(
-		context.TODO(),
-		G_config.MongodbUri,
-		clientopt.ConnectTimeout(time.Duration(G_config.MongodbConnectTimeout) * time.Millisecond)); err != nil {
-		return
-	}
+	// 建立mongodb连接 设置连接池
+	ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
+	mongodbUri = G_config.MongodbUri
+	client, err = mongo.Connect(ctx, options.Client().ApplyURI(mongodbUri).SetMaxPoolSize(100))
 
 	//   选择db和collection
 	G_logSink = &LogSink{
-		client: client,
-		logCollection: client.Database("cron").Collection("log"),
-		logChan: make(chan *common.JobLog, 1000),
+		client:         client,
+		logCollection:  client.Database("cron").Collection("log"),
+		logChan:        make(chan *common.JobLog, 1000),
 		autoCommitChan: make(chan *common.LogBatch, 1000),
 	}
 
